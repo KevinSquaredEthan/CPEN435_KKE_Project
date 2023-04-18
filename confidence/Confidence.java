@@ -40,8 +40,9 @@ public class Confidence {
     public void setup(Context context) throws IOException,
 		InterruptedException {
 	conf = context.getConfiguration();
-	caseSensitive = conf.getBoolean("wordcount.case.sensitive", true);
-	if (conf.getBoolean("wordcount.skip.patterns", false)) {
+	caseSensitive = conf.getBoolean("confidence.case.sensitive", true); 
+	//not case sensitive
+	if (conf.getBoolean("confidence.skip.patterns", false)) {
 		URI[] patternsURIs = Job.getInstance(conf).getCacheFiles();
 		for (URI patternsURI : patternsURIs) {
 			Path patternsPath = new Path(patternsURI.getPath());
@@ -133,7 +134,7 @@ public class Confidence {
     for (int i=0; i < remainingArgs.length; ++i) {
 	if ("-skip".equals(remainingArgs[i])) {
 		job.addCacheFile(new Path(remainingArgs[++i]).toUri());
-		job.getConfiguration().setBoolean("wordcount.skip.patterns", true);
+		job.getConfiguration().setBoolean("confidence.skip.patterns", true);
 	} else {
 		otherArgs.add(remainingArgs[i]);
 	}
