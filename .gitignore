@@ -1,3 +1,7 @@
+# other files
+*.swp
+*.txt
+
 # Compiled class file
 *.class
 
