@@ -64,7 +64,8 @@ public class Confidence {
 		+ StringUtils.stringifyException(ioe));
 	}
      }
-
+    
+    @Override
     public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
       ArrayList<String> A = new ArrayList<String>(); // String not Text, as sort works with strings
@@ -139,8 +140,8 @@ public class Confidence {
 		otherArgs.add(remainingArgs[i]);
 	}
     }
-    FileInputFormat.addInputPath(job, new Path(args[0]));
-    FileOutputFormat.setOutputPath(job, new Path(args[1]));
+    FileInputFormat.addInputPath(job, new Path(args[2]));
+    FileOutputFormat.setOutputPath(job, new Path(args[3]));
     System.exit(job.waitForCompletion(true) ? 0 : 1);
   }
 }
