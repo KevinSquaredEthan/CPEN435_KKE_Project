@@ -121,9 +121,10 @@ public class Confidence {
   } // end of mapper class
 
   public static class ConfMapper
-       extends Mapper<Text, IntWritable, Text, String>{
+       extends Mapper<Text, IntWritable, Text, Text>{
    
-    private Text word = new Text();
+    private Text word1 = new Text();
+    private Text word2 = new Text();
     // for caseSensitive
     private boolean caseSensitive;
     private Configuration conf;
@@ -135,12 +136,18 @@ public class Confidence {
                     ) throws IOException, InterruptedException {
       String line = key.toString();
       if(line.contains(":")) { // is a pair
-        
+	StringTokenizer itr2 = new StringTokenizer(line, ":");
+	word1.set(itr2.nextToken()); // like hello in hello:world 2
+	String second_pair = itr2.nextToken();
+	// value has number
+	word2.set(second_pair+"|"+value.toString());
+	context.write(word1,word2);
       }
       else {
 	StringTokenizer itr1 = new StringTokenizer(line, "\t");
-	word.set(itr1.nextToken());
-        context.write(word,value.toString()); 
+	word1.set(itr1.nextToken());
+	word2.set(value.toString());
+        context.write(word1,word2); 
 	// write that to context and cast to string
       }
     } // end of mapper function
@@ -163,13 +170,13 @@ public class Confidence {
   }
 
   public static class ConfReducer
-       extends Reducer<Text,IntWritable,Text,IntWritable> {
+       extends Reducer<Text,Text,Text,IntWritable> {
     private IntWritable result = new IntWritable();
 
     public void reduce(Text key, Iterable<IntWritable> values,
                        Context context
                        ) throws IOException, InterruptedException {
-      //int numerator = 0;
+      int numerator = 0;
       //for (IntWritable val : values) {
       //}
       //context.write(key, numerator);
