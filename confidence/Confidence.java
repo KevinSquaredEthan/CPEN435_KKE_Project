@@ -33,6 +33,7 @@ public class Confidence {
     // for caseSensitive
     private boolean caseSensitive;
     private Set<String> patternsToSkip = new HashSet<String>();
+    private Set<String> stopWordsToSkip = new HashSet<String>();
     private Configuration conf;
     private BufferedReader fis;
 
@@ -47,7 +48,10 @@ public class Confidence {
 		for (URI patternsURI : patternsURIs) {
 			Path patternsPath = new Path(patternsURI.getPath());
 			String patternsFileName = patternsPath.getName().toString();
-			parseSkipFile(patternsFileName);
+                        if(patternsFileName.equals("patterns.txt")) {
+			parseSkipFile(patternsFileName); }
+			if(patternsFileName.equals("stop_words.txt")) {
+			parseStopWordsFile(patternsFileName); }
 		}
 	}
     }
@@ -64,12 +68,27 @@ public class Confidence {
 		+ StringUtils.stringifyException(ioe));
 	}
      }
+
+    private void parseStopWordsFile(String fileName) {
+	try {
+		fis = new BufferedReader(new FileReader(fileName));
+		String pattern = null;
+		while ((pattern = fis.readLine()) != null) {
+			stopWordsToSkip.add(pattern);
+		}
+	} catch (IOException ioe) {
+		System.err.println("Caught exception while parsing the cached file '"
+		+ StringUtils.stringifyException(ioe));
+	}
+     }
+
     
     @Override
     public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
       ArrayList<String> A = new ArrayList<String>(); // String not Text, as sort works with strings
-      // caseSensitive and remove stop words
+       // A could possibly be a hash set
+      // caseSensitive and removes punctuation
       String line = (caseSensitive) ?
 	value.toString() : value.toString().toLowerCase();
       for (String pattern : patternsToSkip) {
@@ -81,7 +100,8 @@ public class Confidence {
 	// this loop will find a list of unique words in a line
 	while(itr2.hasMoreTokens()) {
 	 String temp = itr2.nextToken();
-         if(A.contains(temp) == false)
+         if(A.contains(temp) == false && !stopWordsToSkip.contains(temp))
+	   // check if it stop word to not add
 	   A.add(temp);
 	}
       }
@@ -120,10 +140,10 @@ public class Confidence {
     GenericOptionsParser optionParser = new GenericOptionsParser(conf,
 	args);
     String[] remainingArgs = optionParser.getRemainingArgs();
-    if ((remainingArgs.length != 2) && (remainingArgs.length != 4)) {
+    /*if ((remainingArgs.length != 2) && (remainingArgs.length != 5)) {
 	System.err.println("Usage: confidence <in> <out> [-skip skipPatternFile]");
 	System.exit(2);
-    }
+    }*/ // TODO put this back later
     Job job = Job.getInstance(conf, "confidence");
     job.setJarByClass(Confidence.class);
     job.setMapperClass(TokenizerMapper.class);
