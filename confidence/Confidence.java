@@ -111,13 +111,81 @@ public class Confidence {
 	word.set(wi);
         context.write(word, one); //w[i] emit
 	for(int j = i+1; j < A.size(); ++j) {
-	  word.set(wi+" : "+A.get(j));
+	  word.set(wi+":"+A.get(j));
+	  // TODO account for converse like hello:world and world:hello 
           context.write(word, one); 
 	  //emit pair of w[i] and w[j]
 	}
       }
     }
-  }
+  } // end of mapper class
+
+  public static class ConfMapper
+       extends Mapper<Object, Text, Text, IntWritable>{
+   
+    private final static IntWritable one = new IntWritable(1);
+    private Text word = new Text();
+    // for caseSensitive
+    private boolean caseSensitive;
+    private Configuration conf;
+    private BufferedReader fis;
+
+    @Override
+    public void map(Object key, Text value, Context context
+                    ) throws IOException, InterruptedException {
+      ArrayList<String> A = new ArrayList<String>(); // String not Text, as sort works with strings
+      HashMap<String, int> single_word_map;
+      String single_string;
+      int single_int;
+      String first_in_pair;
+      String rest_in_pair;
+      String second_in_pair;
+      int combo_int;
+      HashSet<String> single_word_set;
+      double conf_num;
+      HashMap<String, int> combo_words_map;
+      LinkedList<String> combo_words_set; // less memory intensive
+       // A could possibly be a hash set
+      StringTokenizer itr = new StringTokenizer(line,"\n"); // iterate through each line
+      while (itr.hasMoreTokens()) { 
+	String line = itr.nextToken();
+	if(line.contains(":")) { // if pair
+	  StringTokenizer itr2 = new StringTokenizer(line, ":");
+	  // this loop will find a list of unique words in a line, with delimiter
+	   first_in_pair = itr2.nextToken(); // like hello in hello:
+	   if(single_word_set.contains(first_in_pair)) {
+	     rest_in_pair = itr2.nextToken(); // like world 2 in hello:world 2
+	     StringTokenizer itr4 = new StringTokenizer(second_in_pair, "\t"); // tab in between key and value
+             second_in_pair = itr4.nextToken(); // like world in world	2
+	     combo_int = Integer.parseInt(itr4.nextToken()); // like 2 in world 2
+	     // compute confidence
+	     conf_num = (double) single_int / combo_int;
+	     word.set(first_in_pair+":"+seond_in_pair);
+	     context.write(word, conf_num);
+	   }
+	 }
+	 else { // not pair
+	   StringTokenizer itr3 = new StringTokenizer(line, "\t"); // tab in between key and value
+	   single_string = itr3.nextToken(); // gets like hello in hello		5
+	   single_int = Integer.parseInt(itr3.nextToken());
+
+	 }
+      }
+      Collections.sort(A); // in ascending order 
+      for(int i = 0; i < A.size(); ++i) {
+	String wi = A.get(i);
+	word.set(wi);
+        context.write(word, one); //w[i] emit
+	for(int j = i+1; j < A.size(); ++j) {
+	  word.set(wi+" : "+A.get(j));
+	  // TODO account for converse like hello:world and world:hello 
+          context.write(word, one); 
+	  //emit pair of w[i] and w[j]
+	}
+      }
+
+    }
+  } // end of mapper class
 
   public static class IntSumReducer
        extends Reducer<Text,IntWritable,Text,IntWritable> {
@@ -134,6 +202,22 @@ public class Confidence {
       context.write(key, result);
     }
   }
+
+   /*public static class ConfReducer
+       extends Reducer<Text,IntWritable,Text,IntWritable> {
+    private IntWritable result = new IntWritable();
+
+    public void reduce(Text key, Iterable<IntWritable> values,
+                       Context context
+                       ) throws IOException, InterruptedException {
+      int numerator = 0;
+      for (IntWritable val : values) {
+         += val.get();
+      }
+      result.set(sum);
+      context.write(key, result);
+    }
+  }*/ // TODO maybe need this but need to reduce multiple keys
 
   public static void main(String[] args) throws Exception {
     Configuration conf = new Configuration();
@@ -162,6 +246,17 @@ public class Confidence {
     }
     FileInputFormat.addInputPath(job, new Path(args[2]));
     FileOutputFormat.setOutputPath(job, new Path(args[3]));
-    System.exit(job.waitForCompletion(true) ? 0 : 1);
+    // running the second job
+    job.waitForCompletion(true) ; // first MapReduce job finishes here
+    Configuration confTwo = new Configuration();
+    Job job2 = Job.getInstance(confTwo, "Conf step two");
+    job2.setJarByClass(Confidence.class);
+    job2.setMapperClass(MapTwo.class);
+    job2.setReducerClass(ReduceTwo.class);
+    job2.setOutputKeyClass(Text.class);
+    job2.setOutputValueClass(Text.class);
+    FileInputFormat.addInputPath(job2, new Path(otherArgs.get(2)));
+    FileOutputFormat.setOutputPath(job2, new Path(otherArgs.get(3)));
+    System.exit(job2.waitForCompletion(true) ? 0 : 1);
   }
 }
