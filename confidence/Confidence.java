@@ -142,15 +142,16 @@ public class Confidence {
 	  String rest_pair = itr2.nextToken();
 	  StringTokenizer itr3 = new StringTokenizer(rest_pair, "\t");
 	  String second_pair = itr3.nextToken();
+	  String val_int = itr3.nextToken();
 	  // value has number
-	  word2.set(second_pair+"|"+itr3.nextToken());
+	  word2.set(second_pair+"|"+val_int);
 	  context.write(word1,word2);
 	  // hello:world but also world:hello
 	  word1.set(second_pair);
-	  word2.set(first_pair+"|"+value.toString());
+	  word2.set(first_pair+"|"+val_int);
 	  context.write(word1,word2);
         }
-        else {
+        else { // not a pair
 	  StringTokenizer itr1 = new StringTokenizer(line, "\t");
 	  word1.set(itr1.nextToken());
 	  word2.set(itr1.nextToken()); // get number 2 like in hello  2
@@ -249,8 +250,8 @@ public class Confidence {
     job2.setReducerClass(ConfReducer.class);
     job2.setOutputKeyClass(Text.class);
     job2.setOutputValueClass(Text.class);
-    FileInputFormat.addInputPath(job2, new Path(otherArgs.get(2)));
-    FileOutputFormat.setOutputPath(job2, new Path(otherArgs.get(3)));
+    FileInputFormat.addInputPath(job2, new Path(args[2]));
+    FileOutputFormat.setOutputPath(job2, new Path(args[3]));
     System.exit(job2.waitForCompletion(true) ? 0 : 1);
   }
 }
