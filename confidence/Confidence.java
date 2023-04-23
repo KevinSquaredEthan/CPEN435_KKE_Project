@@ -121,7 +121,7 @@ public class Confidence {
   } // end of mapper class
 
   public static class ConfMapper
-       extends Mapper<Text, IntWritable, Text, Text>{
+       extends Mapper<Object, Text, Text, Text>{
    
     private Text word1 = new Text();
     private Text word2 = new Text();
@@ -132,28 +132,33 @@ public class Confidence {
 
     @Override
     // key is object as writes to that 
-    public void map(Text key, IntWritable value, Context context
+    public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
-      String line = key.toString();
-      if(line.contains(":")) { // is a pair
-	StringTokenizer itr2 = new StringTokenizer(line, ":");
-	String first_pair = itr2.nextToken();
-	word1.set(first_pair); // like hello in hello:world 2
-	String second_pair = itr2.nextToken();
-	// value has number
-	word2.set(second_pair+"|"+value.toString());
-	context.write(word1,word2);
-	// hello:world but also world:hello
-	word1.set(second_pair);
-	word2.set(first_pair+"|"+value.toString());
-	context.write(word1,word2);
-      }
-      else {
-	StringTokenizer itr1 = new StringTokenizer(line, "\t");
-	word1.set(itr1.nextToken());
-	word2.set(value.toString());
-        context.write(word1,word2); 
-	// write that to context and cast to string
+      StringTokenizer itr = new StringTokenizer(value.toString(), "\n");
+      while(itr.hasMoreTokens()) {
+        String line = itr.nextToken();
+        if(line.contains(":")) { // is a pair
+	  StringTokenizer itr2 = new StringTokenizer(line, ":");
+	  String first_pair = itr2.nextToken();
+	  word1.set(first_pair); // like hello in hello:world 2
+	  String rest_pair = itr2.nextToken();
+	  StringTokenizer itr3 = new StringTokenizer(rest_pair, "\t");
+	  String second_pair = itr3.nextToken();
+	  // value has number
+	  word2.set(second_pair+"|"+itr3.nextToken());
+	  context.write(word1,word2);
+	  // hello:world but also world:hello
+	  word1.set(second_pair);
+	  word2.set(first_pair+"|"+value.toString());
+	  context.write(word1,word2);
+        }
+        else {
+	  StringTokenizer itr1 = new StringTokenizer(line, "\t");
+	  word1.set(itr1.nextToken());
+	  word2.set(itr1.nextToken()); // get number 2 like in hello  2
+          context.write(word1,word2); 
+	  // write that to context and cast to string
+        }
       }
     } // end of mapper function
   } // end of mapper class
@@ -230,6 +235,7 @@ public class Confidence {
 	if ("-skip".equals(remainingArgs[i])) {
 		job.addCacheFile(new Path(remainingArgs[++i]).toUri());
 		job.getConfiguration().setBoolean("confidence.skip.patterns", true);
+		job.getConfiguration().setBoolean("confidence.case.sensitive", true);
 	} else {
 		otherArgs.add(remainingArgs[i]);
 	}
