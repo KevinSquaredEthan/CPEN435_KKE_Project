@@ -137,10 +137,15 @@ public class Confidence {
       String line = key.toString();
       if(line.contains(":")) { // is a pair
 	StringTokenizer itr2 = new StringTokenizer(line, ":");
-	word1.set(itr2.nextToken()); // like hello in hello:world 2
+	String first_pair = itr2.nextToken();
+	word1.set(first_pair); // like hello in hello:world 2
 	String second_pair = itr2.nextToken();
 	// value has number
 	word2.set(second_pair+"|"+value.toString());
+	context.write(word1,word2);
+	// hello:world but also world:hello
+	word1.set(second_pair);
+	word2.set(first_pair+"|"+value.toString());
 	context.write(word1,word2);
       }
       else {
@@ -170,16 +175,31 @@ public class Confidence {
   }
 
   public static class ConfReducer
-       extends Reducer<Text,Text,Text,IntWritable> {
-    private IntWritable result = new IntWritable();
+       extends Reducer<Text,Text,Text,Text> {
+    private Text word1 = new Text();
+    private Text word2 = new Text();
 
-    public void reduce(Text key, Iterable<IntWritable> values,
+    public void reduce(Text key, Iterable<Text> values,
                        Context context
                        ) throws IOException, InterruptedException {
-      int numerator = 0;
-      //for (IntWritable val : values) {
-      //}
-      //context.write(key, numerator);
+      double numerator = 0;
+      double denominator = 0;
+      boolean set_score = false;
+      for (Text val : values) {
+	if(val.toString().contains("|")) {
+          
+	 set_score = true;
+	}
+	else {
+          denominator = Double.parseDouble(val.toString());
+        }
+	if(set_score) { // if both have vals for num and den
+	 word2.set(String.valueOf(numerator/denominator));
+	 // set to conf score
+         context.write(key, word2); 
+	 set_score = false;
+	}
+      }
     }
   }
 
