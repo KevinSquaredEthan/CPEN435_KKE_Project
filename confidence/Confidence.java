@@ -141,49 +141,41 @@ public class Confidence {
       String rest_in_pair;
       String second_in_pair;
       int combo_int;
-      HashSet<String> single_word_set;
-      double conf_num;
-      HashMap<String, int> combo_words_map;
-      LinkedList<String> combo_words_set; // less memory intensive
-       // A could possibly be a hash set
-      StringTokenizer itr = new StringTokenizer(line,"\n"); // iterate through each line
+      
+      String file = value.toString();
+      StringTokenizer itr = new StringTokenizer(file,"\n"); // iterate through each line
+      // First pass to store all single words values
       while (itr.hasMoreTokens()) { 
 	String line = itr.nextToken();
-	if(line.contains(":")) { // if pair
-	  StringTokenizer itr2 = new StringTokenizer(line, ":");
-	  // this loop will find a list of unique words in a line, with delimiter
-	   first_in_pair = itr2.nextToken(); // like hello in hello:
-	   if(single_word_set.contains(first_in_pair)) {
-	     rest_in_pair = itr2.nextToken(); // like world 2 in hello:world 2
-	     StringTokenizer itr4 = new StringTokenizer(second_in_pair, "\t"); // tab in between key and value
-             second_in_pair = itr4.nextToken(); // like world in world	2
-	     combo_int = Integer.parseInt(itr4.nextToken()); // like 2 in world 2
-	     // compute confidence
-	     conf_num = (double) single_int / combo_int;
-	     word.set(first_in_pair+":"+seond_in_pair);
-	     context.write(word, conf_num);
-	   }
-	 }
-	 else { // not pair
-	   StringTokenizer itr3 = new StringTokenizer(line, "\t"); // tab in between key and value
-	   single_string = itr3.nextToken(); // gets like hello in hello		5
-	   single_int = Integer.parseInt(itr3.nextToken());
-
-	 }
-      }
-      Collections.sort(A); // in ascending order 
-      for(int i = 0; i < A.size(); ++i) {
-	String wi = A.get(i);
-	word.set(wi);
-        context.write(word, one); //w[i] emit
-	for(int j = i+1; j < A.size(); ++j) {
-	  word.set(wi+" : "+A.get(j));
-	  // TODO account for converse like hello:world and world:hello 
-          context.write(word, one); 
-	  //emit pair of w[i] and w[j]
+	if(!line.contains(":")) {
+	   StringTokenizer itr2 = new StringTokenizer(line, "\t"); // tab in between key and value
+	   single_word_set.put(itr2.nextToken(),Integer.parseInt(itr2.nextToken())); // store single word
 	}
       }
-
+      // Second pass to create combination keys + add associated values
+      StringTokenizer itr3 = new StringTokenizer(file,"\n");
+      while(itr3.hasMoreTokens()){
+      	String line = itr.nextToken();
+	StringTokenizer itr4 = new StringTokenizer(line,":");
+	if(itr4.hasMoreTokens()){
+		String word_one = itr4.nextToken();
+		// check if it's a pair
+		if(itr4.hasMoreTokens()){
+			// parse the combination pair
+			IntWriteable word_one_count = new IntWriteable(single_word_map.get(word_one));
+			String word_two = itr4.nextToken("\t");
+			IntWriteable word_two_count = new IntWriteable(single_word_map.get(word_two));
+			IntWriteable combination = new IntWriteable(Integer.parseInt(itr4.nextToken()));
+			word.set(word_one+":"+word_two);
+			// write as (combination; word one count, word two count, combination count)
+			// 		(key; value1, value2, value3)
+			context.write(word,word_one_count,word_two_count,combination);
+		}
+	}
+      }
+      
+		    
+      }
     }
   } // end of mapper class
 
@@ -203,21 +195,25 @@ public class Confidence {
     }
   }
 
-   /*public static class ConfReducer
+   public static class ConfReducer
        extends Reducer<Text,IntWritable,Text,IntWritable> {
-    private IntWritable result = new IntWritable();
+    private DoubleWritable result = new DoubleWritable();
 
     public void reduce(Text key, Iterable<IntWritable> values,
                        Context context
                        ) throws IOException, InterruptedException {
-      int numerator = 0;
-      for (IntWritable val : values) {
-         += val.get();
-      }
-      result.set(sum);
+      int word_one_num = val.get();
+      int word_two_num = val.get();
+      int combination_num = val.get();
+      result.set(((double)combination_num) / ((double)word_one_num));
       context.write(key, result);
+      StringTokenizer itr = new StringTokenizer(key.toString(),":");
+      String temp = itr.nextToken();
+      String reverse_key = itr.nextToken()+":"+temp;
+      result.set(((double)combination_num) / ((double)word_two_num));
+      context.write(reverse_key.toText(),result);
     }
-  }*/ // TODO maybe need this but need to reduce multiple keys
+  } // TODO maybe need this but need to reduce multiple keys
 
   public static void main(String[] args) throws Exception {
     Configuration conf = new Configuration();
