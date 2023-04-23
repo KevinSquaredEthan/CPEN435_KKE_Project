@@ -191,16 +191,21 @@ public class Confidence {
       boolean set_score = false;
       String second_pair = "";
       String valString;
+      ArrayList<String> A = new ArrayList<String>(); // String not Text, as sort works with strings
       for (Text val : values) {
-	valString = val.toString();
-	if(valString.contains("|")) {
-         StringTokenizer itr = new StringTokenizer(valString,"|");
+        A.add(val.toString()); 
+      } // sort this cause values come in shuffled
+      // want the single word count to be first
+      Collections.sort(A);
+      for (String val : A) {
+	if(val.contains("|")) {
+         StringTokenizer itr = new StringTokenizer(val,"|");
 	 second_pair = itr.nextToken();
 	 numerator = Double.parseDouble(itr.nextToken());
 	 set_score = true;
 	}
 	else {
-          denominator = Double.parseDouble(valString);
+         denominator = Double.parseDouble(val);
         }
 	if(set_score) { // if both have vals for num and den
          word1.set(key.toString()+":"+second_pair);
