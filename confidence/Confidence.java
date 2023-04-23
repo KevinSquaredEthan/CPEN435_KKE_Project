@@ -185,18 +185,24 @@ public class Confidence {
       double numerator = 0;
       double denominator = 0;
       boolean set_score = false;
+      String second_pair = "";
+      String valString;
       for (Text val : values) {
-	if(val.toString().contains("|")) {
-          
+	valString = val.toString();
+	if(valString.contains("|")) {
+         StringTokenizer itr = new StringTokenizer(valString,"|");
+	 second_pair = itr.nextToken();
+	 numerator = Double.parseDouble(itr.nextToken());
 	 set_score = true;
 	}
 	else {
-          denominator = Double.parseDouble(val.toString());
+          denominator = Double.parseDouble(valString);
         }
 	if(set_score) { // if both have vals for num and den
+         word1.set(key.toString()+":"+second_pair);
 	 word2.set(String.valueOf(numerator/denominator));
 	 // set to conf score
-         context.write(key, word2); 
+         context.write(word1, word2); 
 	 set_score = false;
 	}
       }
