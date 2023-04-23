@@ -83,7 +83,6 @@ public class Confidence {
      }
 
     
-    @Override
     public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
       ArrayList<String> A = new ArrayList<String>(); // String not Text, as sort works with strings
@@ -130,7 +129,6 @@ public class Confidence {
     private Configuration conf;
     private BufferedReader fis;
 
-    @Override
     // key is object as writes to that 
     public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
@@ -235,15 +233,14 @@ public class Confidence {
 	if ("-skip".equals(remainingArgs[i])) {
 		job.addCacheFile(new Path(remainingArgs[++i]).toUri());
 		job.getConfiguration().setBoolean("confidence.skip.patterns", true);
-		job.getConfiguration().setBoolean("confidence.case.sensitive", true);
+		job.getConfiguration().setBoolean("confidence.case.sensitive", false);
 	} else {
 		otherArgs.add(remainingArgs[i]);
 	}
     }
-    FileInputFormat.addInputPath(job, new Path(args[2]));
-    FileOutputFormat.setOutputPath(job, new Path(args[3]));
+    FileInputFormat.addInputPath(job, new Path(args[0]));
+    FileOutputFormat.setOutputPath(job, new Path(args[1]));
     // running the second job
-    /*
     job.waitForCompletion(true) ; // first MapReduce job finishes here
     Configuration confTwo = new Configuration();
     Job job2 = Job.getInstance(confTwo, "Conf step two");
@@ -254,7 +251,6 @@ public class Confidence {
     job2.setOutputValueClass(Text.class);
     FileInputFormat.addInputPath(job2, new Path(otherArgs.get(2)));
     FileOutputFormat.setOutputPath(job2, new Path(otherArgs.get(3)));
-    */
-    System.exit(job.waitForCompletion(true) ? 0 : 1);
+    System.exit(job2.waitForCompletion(true) ? 0 : 1);
   }
 }
