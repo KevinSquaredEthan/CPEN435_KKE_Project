@@ -83,7 +83,6 @@ public class Confidence {
      }
 
     
-    @Override
     public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
       ArrayList<String> A = new ArrayList<String>(); // String not Text, as sort works with strings
@@ -121,62 +120,46 @@ public class Confidence {
   } // end of mapper class
 
   public static class ConfMapper
-       extends Mapper<Object, Text, Text, IntWritable>{
+       extends Mapper<Object, Text, Text, Text>{
    
-    private final static IntWritable one = new IntWritable(1);
-    private Text word = new Text();
+    private Text word1 = new Text();
+    private Text word2 = new Text();
     // for caseSensitive
     private boolean caseSensitive;
     private Configuration conf;
     private BufferedReader fis;
 
-    @Override
+    // key is object as writes to that 
     public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
-      ArrayList<String> A = new ArrayList<String>(); // String not Text, as sort works with strings
-      HashMap<String, int> single_word_map;
-      String single_string;
-      int single_int;
-      String first_in_pair;
-      String rest_in_pair;
-      String second_in_pair;
-      int combo_int;
-      
-      String file = value.toString();
-      StringTokenizer itr = new StringTokenizer(file,"\n"); // iterate through each line
-      // First pass to store all single words values
-      while (itr.hasMoreTokens()) { 
-	String line = itr.nextToken();
-	if(!line.contains(":")) {
-	   StringTokenizer itr2 = new StringTokenizer(line, "\t"); // tab in between key and value
-	   single_word_set.put(itr2.nextToken(),Integer.parseInt(itr2.nextToken())); // store single word
-	}
+      StringTokenizer itr = new StringTokenizer(value.toString(), "\n");
+      while(itr.hasMoreTokens()) {
+        String line = itr.nextToken();
+        if(line.contains(":")) { // is a pair
+	  StringTokenizer itr2 = new StringTokenizer(line, ":");
+	  String first_pair = itr2.nextToken();
+	  word1.set(first_pair); // like hello in hello:world 2
+	  String rest_pair = itr2.nextToken();
+	  StringTokenizer itr3 = new StringTokenizer(rest_pair, "\t");
+	  String second_pair = itr3.nextToken();
+	  String val_int = itr3.nextToken();
+	  // value has number
+	  word2.set(second_pair+"|"+val_int);
+	  context.write(word1,word2);
+	  // hello:world but also world:hello
+	  word1.set(second_pair);
+	  word2.set(first_pair+"|"+val_int);
+	  context.write(word1,word2);
+        }
+        else { // not a pair
+	  StringTokenizer itr1 = new StringTokenizer(line, "\t");
+	  word1.set(itr1.nextToken());
+	  word2.set(itr1.nextToken()); // get number 2 like in hello  2
+          context.write(word1,word2); 
+	  // write that to context and cast to string
+        }
       }
-      // Second pass to create combination keys + add associated values
-      StringTokenizer itr3 = new StringTokenizer(file,"\n");
-      while(itr3.hasMoreTokens()){
-      	String line = itr.nextToken();
-	StringTokenizer itr4 = new StringTokenizer(line,":");
-	if(itr4.hasMoreTokens()){
-		String word_one = itr4.nextToken();
-		// check if it's a pair
-		if(itr4.hasMoreTokens()){
-			// parse the combination pair
-			IntWriteable word_one_count = new IntWriteable(single_word_map.get(word_one));
-			String word_two = itr4.nextToken("\t");
-			IntWriteable word_two_count = new IntWriteable(single_word_map.get(word_two));
-			IntWriteable combination = new IntWriteable(Integer.parseInt(itr4.nextToken()));
-			word.set(word_one+":"+word_two);
-			// write as (combination; word one count, word two count, combination count)
-			// 		(key; value1, value2, value3)
-			context.write(word,word_one_count,word_two_count,combination);
-		}
-	}
-      }
-      
-		    
-      }
-    }
+    } // end of mapper function
   } // end of mapper class
 
   public static class IntSumReducer
@@ -195,25 +178,45 @@ public class Confidence {
     }
   }
 
-   public static class ConfReducer
-       extends Reducer<Text,IntWritable,Text,IntWritable> {
-    private DoubleWritable result = new DoubleWritable();
+  public static class ConfReducer
+       extends Reducer<Text,Text,Text,Text> {
+    private Text word1 = new Text();
+    private Text word2 = new Text();
 
-    public void reduce(Text key, Iterable<IntWritable> values,
+    public void reduce(Text key, Iterable<Text> values,
                        Context context
                        ) throws IOException, InterruptedException {
-      int word_one_num = val.get();
-      int word_two_num = val.get();
-      int combination_num = val.get();
-      result.set(((double)combination_num) / ((double)word_one_num));
-      context.write(key, result);
-      StringTokenizer itr = new StringTokenizer(key.toString(),":");
-      String temp = itr.nextToken();
-      String reverse_key = itr.nextToken()+":"+temp;
-      result.set(((double)combination_num) / ((double)word_two_num));
-      context.write(reverse_key.toText(),result);
+      double numerator = 0;
+      double denominator = 0;
+      boolean set_score = false;
+      String second_pair = "";
+      String valString;
+      ArrayList<String> A = new ArrayList<String>(); // String not Text, as sort works with strings
+      for (Text val : values) {
+        A.add(val.toString()); 
+      } // sort this cause values come in shuffled
+      // want the single word count to be first
+      Collections.sort(A);
+      for (String val : A) {
+	if(val.contains("|")) {
+         StringTokenizer itr = new StringTokenizer(val,"|");
+	 second_pair = itr.nextToken();
+	 numerator = Double.parseDouble(itr.nextToken());
+	 set_score = true;
+	}
+	else {
+         denominator = Double.parseDouble(val);
+        }
+	if(set_score) { // if both have vals for num and den
+         word1.set(key.toString()+":"+second_pair);
+	 word2.set(String.valueOf(numerator/denominator));
+	 // set to conf score
+         context.write(word1, word2); 
+	 set_score = false;
+	}
+      }
     }
-  } // TODO maybe need this but need to reduce multiple keys
+  }
 
   public static void main(String[] args) throws Exception {
     Configuration conf = new Configuration();
@@ -236,23 +239,24 @@ public class Confidence {
 	if ("-skip".equals(remainingArgs[i])) {
 		job.addCacheFile(new Path(remainingArgs[++i]).toUri());
 		job.getConfiguration().setBoolean("confidence.skip.patterns", true);
+		job.getConfiguration().setBoolean("confidence.case.sensitive", false);
 	} else {
 		otherArgs.add(remainingArgs[i]);
 	}
     }
-    FileInputFormat.addInputPath(job, new Path(args[2]));
-    FileOutputFormat.setOutputPath(job, new Path(args[3]));
+    FileInputFormat.addInputPath(job, new Path(args[0]));
+    FileOutputFormat.setOutputPath(job, new Path(args[1]));
     // running the second job
     job.waitForCompletion(true) ; // first MapReduce job finishes here
     Configuration confTwo = new Configuration();
     Job job2 = Job.getInstance(confTwo, "Conf step two");
     job2.setJarByClass(Confidence.class);
-    job2.setMapperClass(MapTwo.class);
-    job2.setReducerClass(ReduceTwo.class);
+    job2.setMapperClass(ConfMapper.class);
+    job2.setReducerClass(ConfReducer.class);
     job2.setOutputKeyClass(Text.class);
     job2.setOutputValueClass(Text.class);
-    FileInputFormat.addInputPath(job2, new Path(otherArgs.get(2)));
-    FileOutputFormat.setOutputPath(job2, new Path(otherArgs.get(3)));
+    FileInputFormat.addInputPath(job2, new Path(args[2]));
+    FileOutputFormat.setOutputPath(job2, new Path(args[3]));
     System.exit(job2.waitForCompletion(true) ? 0 : 1);
   }
 }
